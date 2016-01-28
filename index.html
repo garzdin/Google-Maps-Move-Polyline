@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style type="text/css">
+      html, body { height: 100%; margin: 0; padding: 0; }
+      #map { height: 100%; }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script type="text/javascript">
+      var map, marker, origLat, origLng, newLat, newLng, diffLat, diffLng, right, up;
+
+      function initMap() {
+
+        google.maps.Polyline.prototype.getBounds = function() {
+          var bounds = new google.maps.LatLngBounds();
+          this.getPath().forEach( function(latlng) { bounds.extend(latlng); } );
+          return bounds;
+        }
+
+        var map = new google.maps.Map(document.getElementById('map'), {
+          zoom: 10,
+          center: {lat: 37.772, lng: -122.214},
+          mapTypeId: google.maps.MapTypeId.TERRAIN
+        });
+
+        var flightPlanCoordinates = [
+          {lat: 37.772, lng: -122.214},
+          {lat: 37.772, lng: -122.224},
+          {lat: 37.782, lng: -122.224},
+          {lat: 37.782, lng: -122.234},
+        ];
+
+        var flightPath = new google.maps.Polyline({
+          path: flightPlanCoordinates,
+          geodesic: true,
+          map: map,
+          draggable: true,
+          strokeColor: '#FF0000',
+          strokeOpacity: 1.0,
+          strokeWeight: 2
+        });
+
+        marker = new google.maps.Marker({
+            position: flightPlanCoordinates[Math.floor(flightPlanCoordinates.length / 2)],
+            draggable: true,
+            map: null
+        });
+
+        map.addListener('zoom_changed', function() {
+          if(map.getZoom() < 11) {
+            marker.setMap(map);
+            flightPath.setMap(null);
+          } else {
+            marker.setMap(null);
+            flightPath.setMap(map);
+          }
+        });
+
+        marker.addListener('dragstart', function() {
+          origLat = marker.getPosition().lat();
+          origLng = marker.getPosition().lng();
+        });
+
+        marker.addListener('dragend', function() {
+          var newPath = new Array();
+          for(var i in flightPath.getPath().getArray()) {
+            newPath[i] = flightPath.getPath().getArray()[i].toJSON();
+          }
+          newLat = marker.getPosition().lat();
+          newLng = marker.getPosition().lng();
+          if(newLat > origLat) {
+            right = true;
+            diffLat = newLat - origLat;
+          } else {
+            right = false;
+            diffLat = origLat - newLat;
+          }
+          if(newLng > origLng) {
+            up = true;
+            diffLng = newLng - origLng;
+          } else {
+            up = false;
+            diffLng = origLng - newLng;
+          }
+          for(var i in newPath) {
+            if(right) {
+              newPath[i].lat += diffLat;
+            } else {
+              newPath[i].lat -= diffLat;
+            }
+            if(up) {
+              newPath[i].lng += diffLng;
+            } else {
+              newPath[i].lng -= diffLng;
+            }
+          }
+          flightPath.setPath(newPath);
+          map.fitBounds(flightPath.getBounds());
+        });
+
+        flightPath.addListener('dragend', function() {
+          marker.setPosition(flightPath.getPath().getArray()[Math.floor(flightPath.getPath().getArray().length / 2)]);
+          map.fitBounds(flightPath.getBounds());
+        });
+      }
+    </script>
+    <script async defer
+      src="https://maps.googleapis.com/maps/api/js?callback=initMap">
+    </script>
+  </body>
+</html>
